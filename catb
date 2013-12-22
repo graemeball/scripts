@@ -32,7 +32,7 @@ def main():
             print(byte_str)
         else:
             print(byte_str + "    <= different")
-            raw_input("...Enter to continue")
+            #raw_input("...Enter to continue")
         file_bytes = read_bytes(files)
 
     print("\ntotal nbytes: {0}".format(nbytes))
