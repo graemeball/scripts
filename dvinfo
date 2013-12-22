@@ -61,18 +61,35 @@ DV_HDR_STRUCT = [
 
 # API / DeltaVision non-standard metadata
 API_TYPE = 100
-LOOKUP_API_META = {
-    'Ch1_Min': ('f4', 5, 76, 80),
-    'Ch1_Max': ('f4', 6, 0, 4),
-    'Ch1_Exp': ('f4', 6, 4, 8)
-}   # 'key'  : (format, nTitle, nChar_1st, nChar_last + 1)
+LOOKUP_API_META2 = collections.OrderedDict([
+    ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
+    ['Ch1_Max', ('f4', 6, 0, 4, 0.0)],
+    ['Ch1_Exp', ('f4', 6, 4, 8, 1.0)]
+    ])  # 'key', (format, nTitle, char_1st, char_last + 1, default)
+# TODO, add channels 4 and 5 to lookup: presumably follows Ch3 in Title6
+LOOKUP_API_META = collections.OrderedDict([
+    ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
+    ['Ch1_Max', ('f4', 6, 0, 4, 0.0)],
+    ['Ch1_Exp', ('f4', 6, 4, 8, 1.0)],
+    ['Ch2_Min', ('f4', 6, 8, 12, 0.0)],
+    ['Ch2_Max', ('f4', 6, 12, 16, 0.0)],
+    ['Ch2_Exp', ('f4', 6, 16, 20, 1.0)],
+    ['Ch3_Min', ('f4', 6, 20, 24, 0.0)],
+    ['Ch3_Max', ('f4', 6, 24, 28, 0.0)],
+    ['Ch3_Exp', ('f4', 6, 28, 32, 1.0)]
+    ])  # 'key', (format, nTitle, char_1st, char_last + 1, default)
 
 
 def chars_to_float(chars):
     """
     Convert a string of 4 chars to a single precision float
     """
-    return np.fromstring(chars, dtype=np.float32)[0]
+    #return [hex(ord(x)) for x in chars]  # hex chars for debugging
+    if chars == '\x00\x00\x00\x00':
+        # TODO: should be 0 for float32 -- why does softWoRx show 1.0?
+        return 1.00
+    else:
+        return np.fromstring(chars, dtype=np.float32)[0]
 
 # lookup table for conversion functions
 CHARS_TO_PY = {
@@ -114,11 +131,13 @@ def extract_api_meta(titles):
     Extract a dictionary of API metadata entries from title fields
     """
     meta = collections.OrderedDict()
-    # TODO, handle empty Title fields, e.g. for multi-channel
     for key in LOOKUP_API_META:
-        to_py_type = CHARS_TO_PY[LOOKUP_API_META[key][0]]
-        ixs = LOOKUP_API_META[key][1:]
-        meta[key] = to_py_type(titles[ixs[0]][ixs[1]:ixs[2]])
+        try:
+            to_py_type = CHARS_TO_PY[LOOKUP_API_META[key][0]]
+            ixs = LOOKUP_API_META[key][1:]
+            meta[key] = to_py_type(titles[ixs[0]][ixs[1]:ixs[2]])
+        except IndexError:
+            meta[key] = LOOKUP_API_META[key][4]
     return meta
 
 
