@@ -61,11 +61,6 @@ DV_HDR_STRUCT = [
 
 # API / DeltaVision non-standard metadata
 API_TYPE = 100
-LOOKUP_API_META2 = collections.OrderedDict([
-    ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
-    ['Ch1_Max', ('f4', 6, 0, 4, 0.0)],
-    ['Ch1_Exp', ('f4', 6, 4, 8, 1.0)]
-    ])  # 'key', (format, nTitle, char_1st, char_last + 1, default)
 # TODO, add channels 4 and 5 to lookup: presumably follows Ch3 in Title6
 LOOKUP_API_META = collections.OrderedDict([
     ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
