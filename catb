@@ -1,15 +1,17 @@
 #!/usr/bin/env python
-#
-# author: graemeball@googlemail.com, 2013
-# license: GPL
+"""
+catb: compare files by printing a column of bytes per file side-by-side
+author: graemeball@googlemail.com, 2013
+license: GPL
+"""
 
 import sys
 
 
-nargs = len(sys.argv)
-if nargs < 2:
+NARGS = len(sys.argv)
+if NARGS < 2:
     print("\n  Usage: catb <filename1> <filename2> ... <filenameN>")
-    print("\n    prints byte column for each file, pausing at diff")
+    print("\n    prints a byte column for each file, side-by-side")
     sys.exit(0)
 
 
@@ -19,9 +21,9 @@ def main():
     columns, pausing when a difference between the files is found
     """
     files = []
-    for narg in range(nargs - 1):
-        files.append(open(sys.argv[narg + 1], 'rb'))
-    
+    for arg_no in [file_no + 1 for file_no in range(NARGS - 1)]:
+        files.append(open(sys.argv[arg_no], 'rb'))
+
     nbytes = 0
     file_bytes = read_bytes(files)
     while any(file_bytes):
@@ -32,8 +34,11 @@ def main():
             print(byte_str)
         else:
             print(byte_str + "    <= different")
-            raw_input("...Enter to continue")
+            #raw_input("...Enter to continue")  # uncomment to pause upon diff
         file_bytes = read_bytes(files)
+
+    for bfile in files:
+        bfile.close()
 
     print("\ntotal nbytes: {0}".format(nbytes))
 
@@ -53,11 +58,11 @@ def read_bytes(files):
     Return a list of the next byte for each file in a file list
     """
     file_bytes = []
-    for f in files:
-        a_byte = f.read(1)
+    for bfile in files:
+        a_byte = bfile.read(1)
         file_bytes.append(a_byte)
     return file_bytes
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     main()

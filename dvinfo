@@ -1,0 +1,145 @@
+#!/usr/bin/env python
+"""
+dvinfo: text dump of metadata from a DeltaVision file
+author: graemeball@googlemail.com, 2013
+license: GPL
+"""
+
+import sys
+import numpy as np
+import collections
+
+
+# check we were passed 1 filename
+if len(sys.argv) != 2:
+    print("\n  Usage: dvinfo <filename1>")
+    print("\n    dumps metadata stored in a DeltaVision file header")
+    sys.exit(0)
+
+
+### Data type & helper function definitions
+
+# Imsubs file header, see http://msg.ucsf.edu/IVE/IVE4_HTML/IM_ref2.html
+DV_HDR_STRUCT = [
+    ('3i4', 'Num'),
+    ('1i4', 'PixelType'),
+    ('3i4', 'mst'),
+    ('3i4', 'm'),
+    ('3f4', 'd'),
+    ('3f4', 'angle'),
+    ('3i4', 'axis'),
+    ('3f4', 'mmm1'),
+    ('1i4', 'nspg'),
+    ('1i4', 'next'),
+    ('1i2', 'dvid'),
+    ('1i2', 'nblank'),
+    ('1i4', 'ntst'),
+    ('24a1', 'blank'),
+    ('1i2', 'NumIntegers'),
+    ('1i2', 'NumFloats'),
+    ('1i2', 'sub'),
+    ('1i2', 'zfac'),
+    ('2f4', 'mm2'),
+    ('2f4', 'mm3'),
+    ('2f4', 'mm4'),
+    ('1i2', 'type'),
+    ('1i2', 'LensNum'),
+    ('1i2', 'n1'),
+    ('1i2', 'n2'),
+    ('1i2', 'v1'),
+    ('1i2', 'v2'),
+    ('2f4', 'mm5'),
+    ('1i2', 'NumTimes'),
+    ('1i2', 'ImgSequence'),
+    ('3f4', 'tilt'),
+    ('1i2', 'NumWaves'),
+    ('5i2', 'wave'),
+    ('3f4', 'zxy0'),
+    ('1i4', 'NumTitles'),
+    ('10a80', 'Titles')
+]
+
+# API / DeltaVision non-standard metadata
+API_TYPE = 100
+LOOKUP_API_META2 = collections.OrderedDict([
+    ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
+    ['Ch1_Max', ('f4', 6, 0, 4, 0.0)],
+    ['Ch1_Exp', ('f4', 6, 4, 8, 1.0)]
+    ])  # 'key', (format, nTitle, char_1st, char_last + 1, default)
+# TODO, add channels 4 and 5 to lookup: presumably follows Ch3 in Title6
+LOOKUP_API_META = collections.OrderedDict([
+    ['Ch1_Min', ('f4', 5, 76, 80, 0.0)],
+    ['Ch1_Max', ('f4', 6, 0, 4, 0.0)],
+    ['Ch1_Exp', ('f4', 6, 4, 8, 1.0)],
+    ['Ch2_Min', ('f4', 6, 8, 12, 0.0)],
+    ['Ch2_Max', ('f4', 6, 12, 16, 0.0)],
+    ['Ch2_Exp', ('f4', 6, 16, 20, 1.0)],
+    ['Ch3_Min', ('f4', 6, 20, 24, 0.0)],
+    ['Ch3_Max', ('f4', 6, 24, 28, 0.0)],
+    ['Ch3_Exp', ('f4', 6, 28, 32, 1.0)]
+    ])  # 'key', (format, nTitle, char_1st, char_last + 1, default)
+
+
+def chars_to_float(chars):
+    """
+    Convert a string of 4 chars to a single precision float
+    """
+    #return [hex(ord(x)) for x in chars]  # hex chars for debugging
+    if chars == '\x00\x00\x00\x00':
+        # TODO: should be 0 for float32 -- why does softWoRx show 1.0?
+        return 1.00
+    else:
+        return np.fromstring(chars, dtype=np.float32)[0]
+
+# lookup table for conversion functions
+CHARS_TO_PY = {
+    'f4': chars_to_float
+}
+
+# END data type & helper function definitions
+
+
+def main():
+    """
+    Read DeltaVision file header into numpy recarray and dump text info
+    """
+    imsubs_file = open(sys.argv[1], 'rb')
+    formats = [fmt_lbl[0] for fmt_lbl in DV_HDR_STRUCT]
+    labels = [fmt_lbl[1] for fmt_lbl in DV_HDR_STRUCT]
+    hdr_arr = np.rec.fromfile(imsubs_file, formats=formats, shape=1)
+    hdr = collections.OrderedDict(zip(labels, hdr_arr[0]))
+    print("\nImsubs file standard metadata:-")
+    print_hdr(hdr)
+    imsubs_file.close()
+
+
+def print_hdr(hdr):
+    """
+    Print Imsubs / DeltaVision header fields (dict) in header byte order,
+    including API metadata stored in Title fields if appropriate.
+    """
+    for entry in hdr:
+        print("  {0}: {1}".format(entry, hdr[entry]))
+    if 'type' in hdr and hdr['type'] == API_TYPE:
+        print("\nAPI / Deltavision non-standard metadata:-")
+        # recursive call, since this function prints key, value pairs
+        print_hdr(extract_api_meta(hdr['Titles']))
+
+
+def extract_api_meta(titles):
+    """
+    Extract a dictionary of API metadata entries from title fields
+    """
+    meta = collections.OrderedDict()
+    for key in LOOKUP_API_META:
+        try:
+            to_py_type = CHARS_TO_PY[LOOKUP_API_META[key][0]]
+            ixs = LOOKUP_API_META[key][1:]
+            meta[key] = to_py_type(titles[ixs[0]][ixs[1]:ixs[2]])
+        except IndexError:
+            meta[key] = LOOKUP_API_META[key][4]
+    return meta
+
+
+if __name__ == '__main__':
+    main()
